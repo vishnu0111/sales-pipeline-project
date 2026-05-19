@@ -24,7 +24,7 @@ pipeline {
 
         stage('Code Quality Check') {
             steps {
-                sh '''
+                bat '''
                 pip install flake8
                 flake8 databricks/ --max-line-length=100
                 '''
@@ -34,7 +34,7 @@ pipeline {
 
         stage('Run Unit Tests') {
             steps {
-                sh '''
+                bat '''
                 pip install pytest pyspark
                 pytest tests/ -v
                 '''
@@ -44,14 +44,12 @@ pipeline {
 
         stage('Deploy Notebooks to Databricks') {
             steps {
-                sh '''
+                bat '''
                 pip install databricks-cli
-
-                # Configure Databricks CLI
-                echo "${DATABRICKS_HOST}
-${DATABRICKS_TOKEN}" | databricks configure --token
-
-                # Deploy notebooks to Databricks workspace
+                echo %DATABRICKS_HOST%> host.txt
+                echo %DATABRICKS_TOKEN%>> host.txt
+                databricks configure --token < host.txt
+                del host.txt
                 databricks workspace import_dir databricks/notebooks /Shared --overwrite
                 '''
                 echo 'Notebooks deployed to Databricks'
@@ -60,18 +58,16 @@ ${DATABRICKS_TOKEN}" | databricks configure --token
 
         stage('Deploy ADF Pipeline') {
             steps {
-                sh '''
-                # Login to Azure
-                az login --service-principal \
-                    -u $AZURE_CLIENT_ID \
-                    -p $AZURE_CLIENT_SECRET \
-                    --tenant $AZURE_TENANT_ID
+                bat '''
+                az login --service-principal ^
+                    -u %AZURE_CLIENT_ID% ^
+                    -p %AZURE_CLIENT_SECRET% ^
+                    --tenant %AZURE_TENANT_ID%
 
-                # Deploy ADF pipeline using ARM template
-                az datafactory pipeline create \
-                    --resource-group ${ADF_RESOURCE_GROUP} \
-                    --factory-name ${ADF_NAME} \
-                    --name pipeline_sales_ingest \
+                az datafactory pipeline create ^
+                    --resource-group %ADF_RESOURCE_GROUP% ^
+                    --factory-name %ADF_NAME% ^
+                    --name pipeline_sales_ingest ^
                     --pipeline @adf/arm_templates/pipeline_sales_ingest.json
                 '''
                 echo 'ADF Pipeline deployed'
@@ -80,10 +76,10 @@ ${DATABRICKS_TOKEN}" | databricks configure --token
 
         stage('Trigger ADF Pipeline') {
             steps {
-                sh '''
-                az datafactory pipeline create-run \
-                    --resource-group ${ADF_RESOURCE_GROUP} \
-                    --factory-name ${ADF_NAME} \
+                bat '''
+                az datafactory pipeline create-run ^
+                    --resource-group %ADF_RESOURCE_GROUP% ^
+                    --factory-name %ADF_NAME% ^
                     --name pipeline_sales_ingest
                 '''
                 echo 'ADF Pipeline triggered!'
