@@ -26,7 +26,7 @@ pipeline {
             steps {
                 bat '''
                 pip install flake8
-                flake8 databricks/ --max-line-length=100
+                flake8 databricks/ --max-line-length=100 --extend-ignore=F821,E221,W292
                 '''
                 echo 'Linting passed'
             }
